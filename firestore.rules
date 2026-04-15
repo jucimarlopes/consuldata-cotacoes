@@ -157,12 +157,11 @@ service cloud.firestore {
       // Any domain user can read user profiles (needed to display names)
       allow read: if isDomainUser();
       
-      // Users can create their own profile. Default role must be 'viewer' unless admin creates it.
+      // Users can create their own profile.
       allow create: if isDomainUser() && 
                     isOwner(userId) && 
                     isValidUser(request.resource.data) && 
-                    uidUnchanged() &&
-                    ((request.resource.data.role == 'viewer') || isAdmin());
+                    uidUnchanged();
                     
       // Only admins can update roles. Users can update their own name.
       allow update: if isDomainUser() && 
