@@ -34,7 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(firebaseUser);
       if (firebaseUser) {
         try {
-          const email = firebaseUser.email || '';
+          const email = (firebaseUser.email || '').toLowerCase();
           const isDomain = email.endsWith('@consuldata.com.br') || email.endsWith('@consuldatac.com.br');
           const isAdminEmail = 
             email === 'gestao.junior.lopes@gmail.com' || 

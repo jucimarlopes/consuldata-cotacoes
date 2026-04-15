@@ -75,7 +75,17 @@ export const Layout: React.FC = () => {
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center text-sm text-consul-gray">
-          <p>&copy; {new Date().getFullYear()} ConsulData. Todos os direitos reservados.</p>
+          <p>
+            &copy; {new Date().getFullYear()} Todos os direitos reservados a{' '}
+            <a 
+              href="https://personalsupport.tec.br" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-consul-blue hover:underline font-medium"
+            >
+              Jucimar Lopes
+            </a>
+          </p>
           <p>
             Desenvolvido por{' '}
             <a 

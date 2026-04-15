@@ -17,6 +17,7 @@ export const Import: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [extractedData, setExtractedData] = useState<ExtractedQuotation | null>(null);
   const [saving, setSaving] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [duplicateWarning, setDuplicateWarning] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -76,7 +77,7 @@ export const Import: React.FC = () => {
       const q = query(
         collection(db, 'quotations'),
         where('quoteNumber', '==', extractedData.quoteNumber),
-        where('supplier', '==', extractedData.supplier)
+        where('supplier', '==', extractedData.supplier || '')
       );
       
       const querySnapshot = await getDocs(q);
@@ -105,13 +106,19 @@ export const Import: React.FC = () => {
     try {
       const batch = writeBatch(db);
       
+      // Ensure date is valid
+      let parsedDate = new Date(extractedData.date);
+      if (isNaN(parsedDate.getTime())) {
+        parsedDate = new Date();
+      }
+
       // 1. Create Quotation Document
       const quotationRef = doc(collection(db, 'quotations'));
       const quotationData = {
-        supplier: extractedData.supplier,
-        date: new Date(extractedData.date),
-        quoteNumber: extractedData.quoteNumber,
-        type: extractedData.type,
+        supplier: extractedData.supplier || '',
+        date: parsedDate,
+        quoteNumber: extractedData.quoteNumber || '',
+        type: (extractedData.type || 'outro').toLowerCase(),
         authorUid: appUser.uid,
         createdAt: serverTimestamp(),
       };
@@ -123,23 +130,23 @@ export const Import: React.FC = () => {
         
         const itemSupplier = prod.supplier || extractedData.supplier;
 
-        // Generate search terms for simple text search
+        // Generate search terms for simple text search (limit to 50 to match rules)
         const searchTerms = [
           ...prod.description.toLowerCase().split(' '),
           itemSupplier.toLowerCase(),
           prod.brand?.toLowerCase() || '',
           ...(prod.semanticTags || []).map(tag => tag.toLowerCase())
-        ].filter(Boolean);
+        ].filter(Boolean).slice(0, 50);
 
         const productData = {
           quotationId: quotationRef.id,
-          supplier: itemSupplier,
-          date: new Date(extractedData.date),
-          description: prod.description,
+          supplier: itemSupplier || '',
+          date: parsedDate,
+          description: prod.description || '',
           brand: prod.brand || '',
-          unitOfMeasure: prod.unitOfMeasure,
-          unitPrice: prod.unitPrice,
-          totalPrice: prod.totalPrice,
+          unitOfMeasure: prod.unitOfMeasure || '',
+          unitPrice: prod.unitPrice || 0,
+          totalPrice: prod.totalPrice || 0,
           authorUid: appUser.uid,
           createdAt: serverTimestamp(),
           searchTerms,
@@ -148,12 +155,14 @@ export const Import: React.FC = () => {
       });
 
       await batch.commit();
-      alert("Cotação importada com sucesso!");
-      navigate('/search');
+      setSuccessMessage("Cotação importada com sucesso! Redirecionando...");
+      setTimeout(() => {
+        navigate('/search');
+      }, 2000);
       
     } catch (err: any) {
       console.error(err);
-      setError("Erro ao salvar no banco de dados. Verifique suas permissões.");
+      setError(`Erro ao salvar no banco de dados: ${err.message || err}`);
     } finally {
       setSaving(false);
     }
@@ -181,6 +190,20 @@ export const Import: React.FC = () => {
         <p className="mt-2 text-consul-gray">
           Faça upload de um arquivo (PDF, Imagem, Excel) ou cole o texto para que a Inteligência Artificial extraia os dados automaticamente.
         </p>
+
+        {error && (
+          <div className="mt-6 bg-red-50 border-l-4 border-consul-coral p-4 flex items-start gap-3">
+            <AlertCircle className="text-consul-coral flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-red-800">{error}</p>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mt-6 bg-green-50 border-l-4 border-consul-green p-4 flex items-start gap-3">
+            <CheckCircle className="text-consul-green flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-green-800 font-medium">{successMessage}</p>
+          </div>
+        )}
 
         {!extractedData && (
           <div className="mt-8">
@@ -261,13 +284,6 @@ export const Import: React.FC = () => {
               </div>
             )}
 
-            {error && (
-              <div className="mt-6 bg-red-50 border-l-4 border-consul-coral p-4 flex items-start gap-3">
-                <AlertCircle className="text-consul-coral flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-800">{error}</p>
-              </div>
-            )}
-
             <div className="mt-8 flex justify-end">
               <button
                 onClick={handleExtract}
@@ -333,7 +349,7 @@ export const Import: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-consul-gray mb-1">Tipo</label>
                   <select 
-                    value={extractedData.type} 
+                    value={extractedData.type.toLowerCase()} 
                     onChange={(e) => updateHeaderField('type', e.target.value as any)}
                     className="w-full p-2 border border-gray-300 rounded focus:ring-consul-blue focus:border-consul-blue bg-white"
                   >
@@ -404,7 +420,7 @@ export const Import: React.FC = () => {
                             type="number" 
                             step="0.01"
                             value={prod.unitPrice} 
-                            onChange={(e) => updateProductField(idx, 'unitPrice', parseFloat(e.target.value))}
+                            onChange={(e) => updateProductField(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
                             className="w-full p-1 border-transparent focus:border-consul-blue focus:ring-0 bg-transparent text-right"
                           />
                         </td>
@@ -413,7 +429,7 @@ export const Import: React.FC = () => {
                             type="number" 
                             step="0.01"
                             value={prod.totalPrice} 
-                            onChange={(e) => updateProductField(idx, 'totalPrice', parseFloat(e.target.value))}
+                            onChange={(e) => updateProductField(idx, 'totalPrice', parseFloat(e.target.value) || 0)}
                             className="w-full p-1 border-transparent focus:border-consul-blue focus:ring-0 bg-transparent text-right"
                           />
                         </td>

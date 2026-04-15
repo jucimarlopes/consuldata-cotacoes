@@ -53,18 +53,18 @@ service cloud.firestore {
 
     function isDomainUser() {
       return isAuthenticated() && (
-        request.auth.token.email.matches('.*@consuldata\\.com\\.br') || 
-        request.auth.token.email.matches('.*@consuldatac\\.com\\.br') || 
-        request.auth.token.email == 'gestao.junior.lopes@gmail.com'
+        request.auth.token.email.matches('(?i).*@consuldata\\.com\\.br') || 
+        request.auth.token.email.matches('(?i).*@consuldatac\\.com\\.br') || 
+        request.auth.token.email.matches('(?i)gestao\\.junior\\.lopes@gmail\\.com')
       );
     }
 
     function isAdmin() {
       return isDomainUser() && (
-        request.auth.token.email == 'gestao.junior.lopes@gmail.com' ||
-        request.auth.token.email == 'jucimar.lopes@consuldata.com.br' ||
-        request.auth.token.email == 'jucimar.lopes@consuldatac.com.br' ||
-        request.auth.token.email == 'compras@consuldata.com.br' ||
+        request.auth.token.email.matches('(?i)gestao\\.junior\\.lopes@gmail\\.com') ||
+        request.auth.token.email.matches('(?i)jucimar\\.lopes@consuldata\\.com\\.br') ||
+        request.auth.token.email.matches('(?i)jucimar\\.lopes@consuldatac\\.com\\.br') ||
+        request.auth.token.email.matches('(?i)compras@consuldata\\.com\\.br') ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
       );
@@ -124,7 +124,7 @@ service cloud.firestore {
 
     function isValidQuotation(data) {
       return hasOnlyAllowedFields(['supplier', 'date', 'quoteNumber', 'type', 'authorUid', 'createdAt']) &&
-             data.supplier is string && data.supplier.size() > 0 && data.supplier.size() < 200 &&
+             data.supplier is string && data.supplier.size() < 200 &&
              data.date is timestamp &&
              data.quoteNumber is string && data.quoteNumber.size() < 100 &&
              data.type in ['proposta', 'pedido', 'orçamento', 'outro'] &&
@@ -137,11 +137,11 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly(allowedFields) &&
              hasRequiredFields(['quotationId', 'supplier', 'date', 'description', 'unitOfMeasure', 'unitPrice', 'totalPrice', 'authorUid', 'createdAt']) &&
              data.quotationId is string && data.quotationId.size() > 0 && data.quotationId.size() < 100 &&
-             data.supplier is string && data.supplier.size() > 0 && data.supplier.size() < 200 &&
+             data.supplier is string && data.supplier.size() < 200 &&
              data.date is timestamp &&
              data.description is string && data.description.size() > 0 && data.description.size() < 1000 &&
              (!('brand' in data) || (data.brand is string && data.brand.size() < 100)) &&
-             data.unitOfMeasure is string && data.unitOfMeasure.size() > 0 && data.unitOfMeasure.size() < 50 &&
+             data.unitOfMeasure is string && data.unitOfMeasure.size() < 50 &&
              data.unitPrice is number && data.unitPrice >= 0 &&
              data.totalPrice is number && data.totalPrice >= 0 &&
              data.authorUid is string && data.authorUid.size() > 0 && data.authorUid.size() < 100 &&
