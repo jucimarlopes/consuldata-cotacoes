@@ -39,6 +39,9 @@ export const Layout: React.FC = () => {
                   <Link to="/search" className="text-consul-gray hover:text-consul-blue px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1">
                     <Search size={18} /> <span className="hidden sm:inline">Buscar</span>
                   </Link>
+                  <Link to="/quotations" className="text-consul-gray hover:text-consul-blue px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1">
+                    <FileText size={18} /> <span className="hidden sm:inline">Cotações</span>
+                  </Link>
                   {(appUser.role === 'admin' || appUser.role === 'uploader') && (
                     <Link to="/import" className="text-consul-gray hover:text-consul-blue px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1">
                       <FileText size={18} /> <span className="hidden sm:inline">Importar</span>

@@ -21,6 +21,7 @@ interface Product {
 export const Search: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
+  const quotationIdFilter = searchParams.get('quotationId') || null;
   
   const [searchTerm, setSearchTerm] = useState(initialQuery);
   const [products, setProducts] = useState<Product[]>([]);
@@ -62,19 +63,25 @@ export const Search: React.FC = () => {
   };
 
   const filteredProducts = useMemo(() => {
-    if (!searchTerm.trim()) return products;
+    let result = products;
+    
+    if (quotationIdFilter) {
+      result = result.filter(p => p.quotationId === quotationIdFilter);
+    }
+
+    if (!searchTerm.trim()) return result;
     
     const terms = searchTerm.toLowerCase().split(' ').filter(Boolean);
-    return products.filter(p => {
+    return result.filter(p => {
       const searchableText = `${p.description} ${p.brand} ${p.supplier} ${(p.searchTerms || []).join(' ')}`.toLowerCase();
       return terms.every(term => searchableText.includes(term));
     });
-  }, [products, searchTerm]);
+  }, [products, searchTerm, quotationIdFilter]);
 
   // Reset to page 1 when search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, quotationIdFilter]);
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
   const paginatedProducts = filteredProducts.slice(
@@ -84,7 +91,10 @@ export const Search: React.FC = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setSearchParams(searchTerm ? { q: searchTerm } : {});
+    const params: any = {};
+    if (searchTerm) params.q = searchTerm;
+    if (quotationIdFilter) params.quotationId = quotationIdFilter;
+    setSearchParams(params);
   };
 
   const handleDelete = async (id: string) => {
@@ -285,7 +295,7 @@ export const Search: React.FC = () => {
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
           <h1 className="text-2xl font-bold text-consul-dark flex items-center gap-2">
             <SearchIcon className="text-consul-blue" />
-            Buscar Cotações
+            {quotationIdFilter ? 'Itens da Cotação' : 'Buscar Cotações'}
           </h1>
           
           <form onSubmit={handleSearch} className="relative w-full sm:w-96">
@@ -311,6 +321,23 @@ export const Search: React.FC = () => {
             )}
           </button>
         </div>
+
+        {quotationIdFilter && (
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex justify-between items-center">
+            <div className="flex items-center gap-2 text-consul-blue">
+              <FileText size={20} />
+              <span className="font-medium">Visualizando itens de uma cotação específica.</span>
+            </div>
+            <button 
+              onClick={() => {
+                setSearchParams(searchTerm ? { q: searchTerm } : {});
+              }}
+              className="px-4 py-2 bg-white text-consul-blue border border-blue-200 hover:bg-blue-100 rounded-lg text-sm font-medium transition-colors"
+            >
+              Ver Todas as Cotações
+            </button>
+          </div>
+        )}
 
         {/* Results Grid */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">

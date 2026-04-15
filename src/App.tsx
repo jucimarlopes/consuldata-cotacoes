@@ -6,6 +6,7 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Import } from './pages/Import';
 import { Search } from './pages/Search';
+import { Quotations } from './pages/Quotations';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
   const { user, appUser, loading } = useAuth();
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />
             <Route path="search" element={<Search />} />
+            <Route path="quotations" element={<Quotations />} />
             <Route 
               path="import" 
               element={
