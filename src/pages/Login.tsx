@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { LogIn, UserPlus, AlertCircle } from 'lucide-react';
 
 export const Login: React.FC = () => {
-  const { user, login, register, loading } = useAuth();
+  const { user, appUser, login, register, loading } = useAuth();
   const navigate = useNavigate();
   const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
@@ -14,12 +14,12 @@ export const Login: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (user && !loading) {
+    if (user && appUser && !loading) {
       navigate('/');
     }
-  }, [user, loading, navigate]);
+  }, [user, appUser, loading, navigate]);
 
-  if (loading) {
+  if (loading || (user && appUser)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-consul-light">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-consul-blue"></div>
