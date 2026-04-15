@@ -1,0 +1,221 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (matches auth.uid)
+    // Fields:
+    //   - uid: string (required, immutable)
+    //   - email: string (required, immutable)
+    //   - name: string (required)
+    //   - role: string (required, 'admin', 'uploader', 'viewer')
+    //   - createdAt: timestamp (required, immutable)
+    //
+    // Collection: quotations
+    // Document ID: auto-generated
+    // Fields:
+    //   - supplier: string (required)
+    //   - date: timestamp (required)
+    //   - quoteNumber: string (required)
+    //   - type: string (required, 'proposta', 'pedido', 'orçamento', 'outro')
+    //   - authorUid: string (required, immutable)
+    //   - createdAt: timestamp (required, immutable)
+    //
+    // Collection: products
+    // Document ID: auto-generated
+    // Fields:
+    //   - quotationId: string (required, immutable)
+    //   - supplier: string (required)
+    //   - date: timestamp (required)
+    //   - description: string (required)
+    //   - brand: string (optional)
+    //   - unitOfMeasure: string (required)
+    //   - unitPrice: number (required)
+    //   - totalPrice: number (required)
+    //   - authorUid: string (required, immutable)
+    //   - createdAt: timestamp (required, immutable)
+    //   - searchTerms: list of strings (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isDomainUser() {
+      return isAuthenticated() && (
+        request.auth.token.email.matches('.*@consuldata\\.com\\.br') || 
+        request.auth.token.email.matches('.*@consuldatac\\.com\\.br') || 
+        request.auth.token.email == 'gestao.junior.lopes@gmail.com'
+      );
+    }
+
+    function isAdmin() {
+      return isDomainUser() && (
+        request.auth.token.email == 'gestao.junior.lopes@gmail.com' ||
+        request.auth.token.email == 'jucimar.lopes@consuldata.com.br' ||
+        request.auth.token.email == 'jucimar.lopes@consuldatac.com.br' ||
+        request.auth.token.email == 'compras@consuldata.com.br' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isUploader() {
+      return isAdmin() || (
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'uploader'
+      );
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.authorUid;
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+
+    function authorUidUnchanged() {
+      return !('authorUid' in request.resource.data) || request.resource.data.authorUid == request.auth.uid;
+    }
+
+    function authorUidNotModified() {
+      return !('authorUid' in request.resource.data) || request.resource.data.authorUid == resource.data.authorUid;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'email', 'name', 'role', 'createdAt']) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
+             data.email is string && isValidEmail(data.email) && data.email.size() < 150 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.role in ['admin', 'uploader', 'viewer'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidQuotation(data) {
+      return hasOnlyAllowedFields(['supplier', 'date', 'quoteNumber', 'type', 'authorUid', 'createdAt']) &&
+             data.supplier is string && data.supplier.size() > 0 && data.supplier.size() < 200 &&
+             data.date is timestamp &&
+             data.quoteNumber is string && data.quoteNumber.size() < 100 &&
+             data.type in ['proposta', 'pedido', 'orçamento', 'outro'] &&
+             data.authorUid is string && data.authorUid.size() > 0 && data.authorUid.size() < 100 &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidProduct(data) {
+      let allowedFields = ['quotationId', 'supplier', 'date', 'description', 'brand', 'unitOfMeasure', 'unitPrice', 'totalPrice', 'authorUid', 'createdAt', 'searchTerms'];
+      return request.resource.data.keys().hasOnly(allowedFields) &&
+             hasRequiredFields(['quotationId', 'supplier', 'date', 'description', 'unitOfMeasure', 'unitPrice', 'totalPrice', 'authorUid', 'createdAt']) &&
+             data.quotationId is string && data.quotationId.size() > 0 && data.quotationId.size() < 100 &&
+             data.supplier is string && data.supplier.size() > 0 && data.supplier.size() < 200 &&
+             data.date is timestamp &&
+             data.description is string && data.description.size() > 0 && data.description.size() < 1000 &&
+             (!('brand' in data) || (data.brand is string && data.brand.size() < 100)) &&
+             data.unitOfMeasure is string && data.unitOfMeasure.size() > 0 && data.unitOfMeasure.size() < 50 &&
+             data.unitPrice is number && data.unitPrice >= 0 &&
+             data.totalPrice is number && data.totalPrice >= 0 &&
+             data.authorUid is string && data.authorUid.size() > 0 && data.authorUid.size() < 100 &&
+             data.createdAt is timestamp &&
+             (!('searchTerms' in data) || (data.searchTerms is list && data.searchTerms.size() <= 50));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // Any domain user can read user profiles (needed to display names)
+      allow read: if isDomainUser();
+      
+      // Users can create their own profile. Default role must be 'viewer' unless admin creates it.
+      allow create: if isDomainUser() && 
+                    isOwner(userId) && 
+                    isValidUser(request.resource.data) && 
+                    uidUnchanged() &&
+                    ((request.resource.data.role == 'viewer') || isAdmin());
+                    
+      // Only admins can update roles. Users can update their own name.
+      allow update: if isDomainUser() && 
+                    isValidUser(request.resource.data) && 
+                    uidUnchanged() &&
+                    request.resource.data.createdAt == resource.data.createdAt &&
+                    (
+                      isAdmin() || 
+                      (isOwner(userId) && request.resource.data.role == resource.data.role && request.resource.data.email == resource.data.email)
+                    );
+                    
+      allow delete: if isAdmin();
+    }
+
+    match /quotations/{quotationId} {
+      // Any domain user can read quotations
+      allow read: if isDomainUser();
+      
+      // Only uploaders/admins can create
+      allow create: if isDomainUser() && 
+                    isUploader() && 
+                    isValidQuotation(request.resource.data) &&
+                    authorUidUnchanged();
+                    
+      // Only admins or the original author can update/delete
+      allow update: if isDomainUser() && 
+                    (isAdmin() || isDocOwner()) && 
+                    isValidQuotation(request.resource.data) &&
+                    authorUidNotModified() &&
+                    request.resource.data.createdAt == resource.data.createdAt;
+                    
+      allow delete: if isDomainUser() && (isAdmin() || isDocOwner());
+    }
+
+    match /products/{productId} {
+      // Any domain user can read products
+      allow read: if isDomainUser();
+      
+      // Only uploaders/admins can create
+      allow create: if isDomainUser() && 
+                    isUploader() && 
+                    isValidProduct(request.resource.data) &&
+                    authorUidUnchanged();
+                    
+      // Only admins or the original author can update/delete
+      allow update: if isDomainUser() && 
+                    (isAdmin() || isDocOwner()) && 
+                    isValidProduct(request.resource.data) &&
+                    authorUidNotModified() &&
+                    request.resource.data.quotationId == resource.data.quotationId &&
+                    request.resource.data.createdAt == resource.data.createdAt;
+                    
+      allow delete: if isDomainUser() && (isAdmin() || isDocOwner());
+    }
+  }
+}

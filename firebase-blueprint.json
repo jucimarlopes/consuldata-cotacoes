@@ -1,0 +1,64 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the ConsulData Quotation system.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "uploader", "viewer"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "name", "role", "createdAt"]
+    },
+    "Quotation": {
+      "title": "Quotation",
+      "description": "A quotation document imported into the system.",
+      "type": "object",
+      "properties": {
+        "supplier": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "quoteNumber": { "type": "string" },
+        "type": { "type": "string", "enum": ["proposta", "pedido", "orçamento", "outro"] },
+        "authorUid": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["supplier", "date", "quoteNumber", "type", "authorUid", "createdAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "A product item extracted from a quotation.",
+      "type": "object",
+      "properties": {
+        "quotationId": { "type": "string" },
+        "supplier": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "description": { "type": "string" },
+        "brand": { "type": "string" },
+        "unitOfMeasure": { "type": "string" },
+        "unitPrice": { "type": "number" },
+        "totalPrice": { "type": "number" },
+        "authorUid": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "searchTerms": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["quotationId", "supplier", "date", "description", "unitOfMeasure", "unitPrice", "totalPrice", "authorUid", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles and roles."
+    },
+    "/quotations/{quotationId}": {
+      "schema": { "$ref": "#/entities/Quotation" },
+      "description": "Stores imported quotation metadata."
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Stores individual products from quotations for global search."
+    }
+  }
+}
